@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, get_user_model
+from django.conf import settings
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -10,6 +11,11 @@ from .serializers import LoginSerializer, RegisterSerializer
 User = get_user_model()
 
 
+def issue_fresh_token(user):
+    Token.objects.filter(user=user).delete()
+    return Token.objects.create(user=user)
+
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -17,12 +23,13 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        token, _ = Token.objects.get_or_create(user=user)
+        token = issue_fresh_token(user)
 
         return Response(
             {
                 'message': 'Registration successful.',
                 'token': token.key,
+                'token_ttl_seconds': settings.TOKEN_TTL_SECONDS,
                 'user': {
                     'id': user.id,
                     'username': user.username,
@@ -56,12 +63,13 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        token, _ = Token.objects.get_or_create(user=user)
+        token = issue_fresh_token(user)
 
         return Response(
             {
                 'message': 'Login successful.',
                 'token': token.key,
+                'token_ttl_seconds': settings.TOKEN_TTL_SECONDS,
                 'user': {
                     'id': user.id,
                     'username': user.username,
