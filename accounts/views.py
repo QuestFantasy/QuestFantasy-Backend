@@ -93,3 +93,17 @@ class ProfileView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = request.auth
+        if token:
+            token.delete()
+
+        return Response(
+            {'message': 'Logout successful.'},
+            status=status.HTTP_200_OK,
+        )
