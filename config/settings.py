@@ -6,9 +6,44 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key')
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = ['*']
+
+def _parse_bool(value: str) -> bool:
+    """Parse string to boolean value.
+
+    Args:
+        value: String value to parse
+
+    Returns:
+        Boolean value
+    """
+    return value.lower() in ('true', '1', 'yes', 'on')
+
+
+# Security: Validate SECRET_KEY in production
+_secret_key = os.getenv('SECRET_KEY')
+if not _secret_key or _secret_key == 'dev-key':
+    if os.getenv('ENVIRONMENT') == 'production':
+        raise ValueError(
+            "SECRET_KEY environment variable must be set to a secure value in production. "
+            "Current value is invalid."
+        )
+    _secret_key = 'dev-key-insecure-do-not-use-in-production'
+SECRET_KEY = _secret_key
+
+# Security: Parse DEBUG more robustly
+_debug_str = os.getenv('DEBUG', 'False')
+DEBUG = _parse_bool(_debug_str)
+
+# Security: ALLOWED_HOSTS should be explicitly configured
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS]
+
+# Security: Validate production environment
+if os.getenv('ENVIRONMENT') == 'production':
+    if '*' in ALLOWED_HOSTS:
+        raise ValueError("ALLOWED_HOSTS cannot contain '*' in production")
+    if DEBUG:
+        raise ValueError("DEBUG must be False in production")
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -83,6 +118,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 TOKEN_TTL_SECONDS = int(os.getenv('TOKEN_TTL_SECONDS', '3600'))
@@ -94,4 +130,49 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',  # Anonymous users: 100 requests per hour
+        'user': '1000/hour',  # Authenticated users: 1000 requests per hour
+    },
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
+    'EXCEPTION_HANDLER': 'accounts.exceptions.custom_exception_handler',
+}
+
+# Logging configuration for audit trail and debugging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'accounts': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
 }
