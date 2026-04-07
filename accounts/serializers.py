@@ -87,7 +87,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         try:
             password_validation.validate_password(value)
         except password_validation.ValidationError as e:
-            raise serializers.ValidationError(str(e))
+            raise serializers.ValidationError(e.messages)
         return value
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
