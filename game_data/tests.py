@@ -37,6 +37,7 @@ class PlayerProfileApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['level'], 1)
         self.assertIn('skills', response.data)
+        self.assertEqual(len(response.data['skills']), 3)
 
     def test_patch_profile_validates_hp_bounds(self):
         self.authenticate()
@@ -61,3 +62,41 @@ class PlayerProfileApiTests(APITestCase):
         self.assertEqual(second.status_code, status.HTTP_200_OK)
         self.assertFalse(first.data['ignored'])
         self.assertTrue(second.data['ignored'])
+
+    def test_patch_profile_replaces_skills_list(self):
+        self.authenticate()
+        response = self.client.patch(
+            self.url,
+            {
+                'skills': [
+                    {
+                        'skill_id': 'basic_attack',
+                        'name': 'Sword Attack',
+                        'cooldown_seconds': 0.3,
+                        'display_order': 0,
+                    },
+                    {
+                        'skill_id': 'bow_attack',
+                        'name': 'Bow Attack',
+                        'cooldown_seconds': 0.6,
+                        'display_order': 1,
+                    },
+                    {
+                        'skill_id': 'fireball',
+                        'name': 'Fireball',
+                        'cooldown_seconds': 1.5,
+                        'display_order': 2,
+                    },
+                    {
+                        'skill_id': 'power_shot',
+                        'name': 'Power Shot',
+                        'cooldown_seconds': 2.0,
+                        'display_order': 3,
+                    },
+                ],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['skills']), 4)

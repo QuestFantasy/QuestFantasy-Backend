@@ -31,6 +31,7 @@ class PlayerProfileUpdateSerializer(serializers.Serializer):
     hp_max = serializers.IntegerField(required=False, min_value=1)
     hp_current = serializers.IntegerField(required=False, min_value=0)
     gold = serializers.IntegerField(required=False, min_value=0)
+    skills = PlayerSkillSerializer(many=True, required=False)
 
     # Idempotency metadata.
     session_id = serializers.CharField(required=False, allow_blank=False, max_length=64)
@@ -42,5 +43,15 @@ class PlayerProfileUpdateSerializer(serializers.Serializer):
 
         if hp_max is not None and hp_current is not None and hp_current > hp_max:
             raise serializers.ValidationError({'hp_current': 'hp_current cannot exceed hp_max.'})
+
+        # Validate that skill_ids are unique within the provided skills list.
+        skills = attrs.get('skills')
+        if skills is not None:
+            skill_ids = set()
+            for skill in skills:
+                skill_id = skill.get('skill_id')
+                if skill_id in skill_ids:
+                    raise serializers.ValidationError({'skills': 'Duplicate skill_id values are not allowed.'})
+                skill_ids.add(skill_id)
 
         return attrs

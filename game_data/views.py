@@ -40,6 +40,17 @@ class PlayerProfileView(APIView):
             if field in validated:
                 setattr(profile, field, validated[field])
 
+        if 'skills' in validated:
+            PlayerSkill.objects.filter(player_profile=profile).delete()
+            for index, skill in enumerate(validated['skills']):
+                PlayerSkill.objects.create(
+                    player_profile=profile,
+                    skill_id=skill['skill_id'],
+                    name=skill['name'],
+                    cooldown_seconds=skill['cooldown_seconds'],
+                    display_order=skill.get('display_order', index),
+                )
+
         if profile.hp_current > profile.hp_max:
             profile.hp_current = profile.hp_max
 
@@ -56,11 +67,17 @@ class PlayerProfileView(APIView):
     def _get_or_create_profile(user):
         profile, created = PlayerProfile.objects.get_or_create(user=user)
         if created and not PlayerSkill.objects.filter(player_profile=profile).exists():
-            PlayerSkill.objects.create(
-                player_profile=profile,
-                skill_id='basic_attack',
-                name='Basic Attack',
-                cooldown_seconds=1.0,
-                display_order=0,
-            )
+            defaults = [
+                ('basic_attack', 'Sword Attack', 0.3, 0),
+                ('bow_attack', 'Bow Attack', 0.6, 1),
+                ('fireball', 'Fireball', 1.2, 2),
+            ]
+            for skill_id, name, cooldown, order in defaults:
+                PlayerSkill.objects.create(
+                    player_profile=profile,
+                    skill_id=skill_id,
+                    name=name,
+                    cooldown_seconds=cooldown,
+                    display_order=order,
+                )
         return profile

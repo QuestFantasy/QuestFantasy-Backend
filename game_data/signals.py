@@ -14,10 +14,17 @@ def create_player_profile(sender, instance, created, **kwargs):
         return
 
     profile = PlayerProfile.objects.create(user=instance)
-    PlayerSkill.objects.create(
-        player_profile=profile,
-        skill_id='basic_attack',
-        name='Basic Attack',
-        cooldown_seconds=1.0,
-        display_order=0,
-    )
+    defaults = [
+        ('basic_attack', 'Sword Attack', 0.3, 0),
+        ('bow_attack', 'Bow Attack', 0.6, 1),
+        ('fireball', 'Fireball', 1.2, 2),
+    ]
+
+    for skill_id, name, cooldown, order in defaults:
+        PlayerSkill.objects.create(
+            player_profile=profile,
+            skill_id=skill_id,
+            name=name,
+            cooldown_seconds=cooldown,
+            display_order=order,
+        )
