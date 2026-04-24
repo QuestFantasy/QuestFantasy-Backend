@@ -10,5 +10,6 @@ urlpatterns = [
     path('health/', HealthCheckView.as_view(), name='health-global'),
     # API routes
     path('api/auth/', include('accounts.urls')),
+    path('api/player/', include('game_data.urls')),
 ]
 
