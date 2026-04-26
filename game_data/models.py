@@ -17,6 +17,13 @@ class PlayerProfile(models.Model):
     hp_current = models.PositiveIntegerField(default=100)
     gold = models.PositiveIntegerField(default=0)
 
+    # Inventory sync payloads from the game client.
+    # Stored as list of item snapshots (dicts). Structure is owned by the client.
+    inventory_items = models.JSONField(default=list, blank=True)
+
+    # Items the player discarded/dropped. Kept for audit/analytics and potential restore.
+    discarded_items = models.JSONField(default=list, blank=True)
+
     # Idempotent client sync metadata.
     active_session_id = models.CharField(max_length=64, blank=True, default='')
     last_sequence = models.PositiveIntegerField(default=0)
