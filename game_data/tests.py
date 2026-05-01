@@ -19,6 +19,8 @@ class PlayerProfileApiTests(APITestCase):
         )
         self.token = Token.objects.create(user=self.user)
         self.url = reverse('player-profile')
+        self.inventory_url = reverse('player-inventory')
+        self.gold_url = reverse('player-gold')
 
     def authenticate(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
@@ -100,3 +102,31 @@ class PlayerProfileApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['skills']), 4)
+
+    def test_inventory_endpoint_get_and_patch(self):
+        self.authenticate()
+
+        get_response = self.client.get(self.inventory_url)
+        self.assertEqual(get_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(get_response.data['inventory_items'], [])
+        self.assertEqual(get_response.data['discarded_items'], [])
+
+        payload = {
+            'inventory_items': [{'name': 'Basic Sword', 'item_type': 'weapon'}],
+            'discarded_items': [{'name': 'Broken Gloves', 'item_type': 'equipment'}],
+        }
+        patch_response = self.client.patch(self.inventory_url, payload, format='json')
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(patch_response.data['inventory_items']), 1)
+        self.assertEqual(len(patch_response.data['discarded_items']), 1)
+
+    def test_gold_endpoint_get_and_patch(self):
+        self.authenticate()
+
+        get_response = self.client.get(self.gold_url)
+        self.assertEqual(get_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(get_response.data['gold'], 0)
+
+        patch_response = self.client.patch(self.gold_url, {'gold': 123}, format='json')
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_response.data['gold'], 123)

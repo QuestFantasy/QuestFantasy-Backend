@@ -5,7 +5,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import PlayerProfile, PlayerSkill
-from .serializers import PlayerProfileSerializer, PlayerProfileUpdateSerializer
+from .serializers import (
+    PlayerGoldSerializer,
+    PlayerGoldUpdateSerializer,
+    PlayerInventorySerializer,
+    PlayerInventoryUpdateSerializer,
+    PlayerProfileSerializer,
+    PlayerProfileUpdateSerializer,
+)
 
 
 class PlayerProfileView(APIView):
@@ -36,7 +43,15 @@ class PlayerProfileView(APIView):
                 current['reason'] = 'stale_sequence'
                 return Response(current, status=status.HTTP_200_OK)
 
-        for field in ('level', 'experience', 'hp_max', 'hp_current', 'gold'):
+        for field in (
+            'level',
+            'experience',
+            'hp_max',
+            'hp_current',
+            'gold',
+            'inventory_items',
+            'discarded_items',
+        ):
             if field in validated:
                 setattr(profile, field, validated[field])
 
@@ -81,3 +96,48 @@ class PlayerProfileView(APIView):
                     display_order=order,
                 )
         return profile
+
+
+class PlayerInventoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        profile = PlayerProfileView._get_or_create_profile(request.user)
+        serializer = PlayerInventorySerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request: Request) -> Response:
+        profile = PlayerProfileView._get_or_create_profile(request.user)
+        serializer = PlayerInventoryUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        validated = serializer.validated_data
+        if 'inventory_items' in validated:
+            profile.inventory_items = validated['inventory_items']
+
+        if 'discarded_items' in validated:
+            profile.discarded_items = validated['discarded_items']
+
+        profile.save(update_fields=['inventory_items', 'discarded_items', 'updated_at'])
+        output = PlayerInventorySerializer(profile).data
+        return Response(output, status=status.HTTP_200_OK)
+
+
+class PlayerGoldView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        profile = PlayerProfileView._get_or_create_profile(request.user)
+        serializer = PlayerGoldSerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request: Request) -> Response:
+        profile = PlayerProfileView._get_or_create_profile(request.user)
+        serializer = PlayerGoldUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        profile.gold = serializer.validated_data['gold']
+        profile.save(update_fields=['gold', 'updated_at'])
+
+        output = PlayerGoldSerializer(profile).data
+        return Response(output, status=status.HTTP_200_OK)

@@ -20,6 +20,8 @@ class PlayerProfileSerializer(serializers.ModelSerializer):
             'hp_max',
             'hp_current',
             'gold',
+            'inventory_items',
+            'discarded_items',
             'skills',
             'updated_at',
         )
@@ -32,6 +34,14 @@ class PlayerProfileUpdateSerializer(serializers.Serializer):
     hp_current = serializers.IntegerField(required=False, min_value=0)
     gold = serializers.IntegerField(required=False, min_value=0)
     skills = PlayerSkillSerializer(many=True, required=False)
+    inventory_items = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+    )
+    discarded_items = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+    )
 
     # Idempotency metadata.
     session_id = serializers.CharField(required=False, allow_blank=False, max_length=64)
@@ -55,3 +65,37 @@ class PlayerProfileUpdateSerializer(serializers.Serializer):
                 skill_ids.add(skill_id)
 
         return attrs
+
+
+class PlayerInventorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlayerProfile
+        fields = (
+            'inventory_items',
+            'discarded_items',
+            'updated_at',
+        )
+
+
+class PlayerInventoryUpdateSerializer(serializers.Serializer):
+    inventory_items = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+    )
+    discarded_items = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+    )
+
+
+class PlayerGoldSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlayerProfile
+        fields = (
+            'gold',
+            'updated_at',
+        )
+
+
+class PlayerGoldUpdateSerializer(serializers.Serializer):
+    gold = serializers.IntegerField(required=True, min_value=0)
