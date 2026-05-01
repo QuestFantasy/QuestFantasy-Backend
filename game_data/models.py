@@ -19,6 +19,9 @@ class PlayerProfile(models.Model):
     hp_current = models.PositiveIntegerField(default=100)
     gold = models.PositiveIntegerField(default=100)
 
+    # Currently equipped items keyed by slot (head, body, arms, legs, shoes, weapon).
+    equipped_items = models.JSONField(default=dict, blank=True)
+
     # Idempotent client sync metadata.
     active_session_id = models.CharField(max_length=64, blank=True, default='')
     last_sequence = models.PositiveIntegerField(default=0)
