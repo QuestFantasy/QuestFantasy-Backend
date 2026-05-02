@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from .models import PlayerProfile
+from .models import MarketplaceListing, PlayerItem, PlayerProfile
 
 
 User = get_user_model()
@@ -19,14 +19,13 @@ class PlayerProfileApiTests(APITestCase):
         )
         self.token = Token.objects.create(user=self.user)
         self.url = reverse('player-profile')
-        self.inventory_url = reverse('player-inventory')
-        self.gold_url = reverse('player-gold')
 
     def authenticate(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
 
     def test_profile_auto_created_on_user_create(self):
-        self.assertTrue(PlayerProfile.objects.filter(user=self.user).exists())
+        profile = PlayerProfile.objects.get(user=self.user)
+        self.assertEqual(profile.gold, 100)
 
     def test_unauthorized_profile_request_is_rejected(self):
         response = self.client.get(self.url)
@@ -38,6 +37,7 @@ class PlayerProfileApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['level'], 1)
+        self.assertEqual(response.data['gold'], 100)
         self.assertIn('skills', response.data)
         self.assertEqual(len(response.data['skills']), 3)
 
@@ -103,30 +103,68 @@ class PlayerProfileApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['skills']), 4)
 
-    def test_inventory_endpoint_get_and_patch(self):
+    def test_patch_profile_persists_items_in_player_item_table(self):
         self.authenticate()
+        response = self.client.patch(
+            self.url,
+            {
+                'inventory_items': [
+                    {'name': 'Iron Sword', 'attack': 12},
+                ],
+                'discarded_items': [
+                    {'instance_id': '11111111-1111-1111-1111-111111111111', 'name': 'Old Shield'},
+                ],
+            },
+            format='json',
+        )
 
-        get_response = self.client.get(self.inventory_url)
-        self.assertEqual(get_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(get_response.data['inventory_items'], [])
-        self.assertEqual(get_response.data['discarded_items'], [])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['inventory_items']), 1)
+        self.assertEqual(len(response.data['discarded_items']), 1)
+        self.assertEqual(PlayerItem.objects.filter(owner=self.user.player_profile).count(), 2)
 
-        payload = {
-            'inventory_items': [{'name': 'Basic Sword', 'item_type': 'weapon'}],
-            'discarded_items': [{'name': 'Broken Gloves', 'item_type': 'equipment'}],
-        }
-        patch_response = self.client.patch(self.inventory_url, payload, format='json')
-        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(patch_response.data['inventory_items']), 1)
-        self.assertEqual(len(patch_response.data['discarded_items']), 1)
-
-    def test_gold_endpoint_get_and_patch(self):
+    def test_marketplace_purchase_transfers_item_ownership(self):
         self.authenticate()
+        create_response = self.client.patch(
+            self.url,
+            {
+                'inventory_items': [
+                    {'instance_id': '22222222-2222-2222-2222-222222222222', 'name': 'Silver Ring'},
+                ],
+            },
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, status.HTTP_200_OK)
 
-        get_response = self.client.get(self.gold_url)
-        self.assertEqual(get_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(get_response.data['gold'], 0)
+        listing_response = self.client.post(
+            reverse('marketplace-list'),
+            {
+                'item_data': create_response.data['inventory_items'][0],
+                'price': 25,
+            },
+            format='json',
+        )
+        self.assertEqual(listing_response.status_code, status.HTTP_201_CREATED)
 
-        patch_response = self.client.patch(self.gold_url, {'gold': 123}, format='json')
-        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(patch_response.data['gold'], 123)
+        buyer = User.objects.create_user(
+            username='buyer1',
+            email='buyer1@example.com',
+            password='StrongPass123!',
+        )
+        buyer_token = Token.objects.create(user=buyer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {buyer_token.key}')
+
+        buy_response = self.client.post(
+            reverse('marketplace-buy', args=[listing_response.data['id']]),
+            {},
+            format='json',
+        )
+
+        self.assertEqual(buy_response.status_code, status.HTTP_200_OK)
+
+        listing = MarketplaceListing.objects.get(pk=listing_response.data['id'])
+        item = listing.item
+        self.assertEqual(listing.status, MarketplaceListing.Status.SOLD)
+        self.assertEqual(item.owner, buyer.player_profile)
+        self.assertEqual(item.state, PlayerItem.State.INVENTORY)
+        self.assertEqual(str(item.instance_id), '22222222-2222-2222-2222-222222222222')

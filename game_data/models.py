@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.db import models
 
@@ -15,14 +17,7 @@ class PlayerProfile(models.Model):
     experience = models.PositiveIntegerField(default=0)
     hp_max = models.PositiveIntegerField(default=100)
     hp_current = models.PositiveIntegerField(default=100)
-    gold = models.PositiveIntegerField(default=0)
-
-    # Inventory sync payloads from the game client.
-    # Stored as list of item snapshots (dicts). Structure is owned by the client.
-    inventory_items = models.JSONField(default=list, blank=True)
-
-    # Items the player discarded/dropped. Kept for audit/analytics and potential restore.
-    discarded_items = models.JSONField(default=list, blank=True)
+    gold = models.PositiveIntegerField(default=100)
 
     # Idempotent client sync metadata.
     active_session_id = models.CharField(max_length=64, blank=True, default='')
@@ -62,3 +57,74 @@ class PlayerSkill(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player_profile.user.username}:{self.skill_id}"
+
+
+class PlayerItem(models.Model):
+    class State(models.TextChoices):
+        INVENTORY = 'inventory', 'Inventory'
+        DISCARDED = 'discarded', 'Discarded'
+        LISTED = 'listed', 'Listed'
+
+    owner = models.ForeignKey(
+        PlayerProfile,
+        on_delete=models.CASCADE,
+        related_name='items',
+    )
+    instance_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    item_data = models.JSONField(default=dict)
+    state = models.CharField(
+        max_length=16,
+        choices=State.choices,
+        default=State.INVENTORY,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'player_item'
+        ordering = ['id']
+
+    def __str__(self) -> str:
+        return f"{self.owner.user.username}:{self.instance_id}"
+
+
+class MarketplaceListing(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'Active'
+        SOLD = 'sold', 'Sold'
+        CANCELLED = 'cancelled', 'Cancelled'
+
+    seller = models.ForeignKey(
+        PlayerProfile,
+        on_delete=models.CASCADE,
+        related_name='marketplace_listings',
+    )
+    item = models.ForeignKey(
+        PlayerItem,
+        on_delete=models.PROTECT,
+        related_name='marketplace_listings',
+    )
+    price = models.PositiveIntegerField()
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True,
+    )
+    buyer = models.ForeignKey(
+        PlayerProfile,
+        on_delete=models.SET_NULL,
+        related_name='marketplace_purchases',
+        null=True,
+        blank=True,
+    )
+    listed_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'marketplace_listing'
+        ordering = ['-listed_at']
+
+    def __str__(self) -> str:
+        return f"Listing {self.pk} {self.status} {self.price}"
