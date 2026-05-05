@@ -1,7 +1,56 @@
+import uuid
+
 from rest_framework import serializers
 
-from .models import PlayerProfile, PlayerSkill
+from .models import MarketplaceListing, PlayerItem, PlayerProfile, PlayerSkill
 
+
+# ---------------------------------------------------------------------------
+# Helper
+# ---------------------------------------------------------------------------
+
+def ensure_instance_ids(items: list) -> tuple[list, bool]:
+    """
+    Iterate over a list of item dicts.  Any item that is missing an
+    ``instance_id`` key (or whose value is empty/None) is assigned a new
+    UUID4 string in-place.
+
+    Returns:
+        (items, changed)  where ``changed`` is True when at least one item
+        was mutated so the caller knows to save the updated list.
+    """
+    changed = False
+    seen_instance_ids = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        instance_id = item.get('instance_id')
+        if not instance_id:
+            instance_id = str(uuid.uuid4())
+            item['instance_id'] = instance_id
+            changed = True
+        else:
+            try:
+                instance_id = str(uuid.UUID(str(instance_id)))
+            except (TypeError, ValueError):
+                raise serializers.ValidationError('instance_id must be a valid UUID.')
+            item['instance_id'] = instance_id
+
+        if instance_id in seen_instance_ids:
+            raise serializers.ValidationError('Duplicate instance_id values are not allowed.')
+        seen_instance_ids.add(instance_id)
+    return items, changed
+
+
+def serialize_item(item: PlayerItem) -> dict:
+    payload = dict(item.item_data or {})
+    payload['instance_id'] = str(item.instance_id)
+    return payload
+
+
+# ---------------------------------------------------------------------------
+# Player profile / skill serializers
+# ---------------------------------------------------------------------------
 
 class PlayerSkillSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,6 +60,8 @@ class PlayerSkillSerializer(serializers.ModelSerializer):
 
 class PlayerProfileSerializer(serializers.ModelSerializer):
     skills = PlayerSkillSerializer(many=True, read_only=True)
+    inventory_items = serializers.SerializerMethodField()
+    discarded_items = serializers.SerializerMethodField()
 
     class Meta:
         model = PlayerProfile
@@ -25,6 +76,14 @@ class PlayerProfileSerializer(serializers.ModelSerializer):
             'skills',
             'updated_at',
         )
+
+    def get_inventory_items(self, obj):
+        items = obj.items.filter(state=PlayerItem.State.INVENTORY).order_by('id')
+        return [serialize_item(item) for item in items]
+
+    def get_discarded_items(self, obj):
+        items = obj.items.filter(state=PlayerItem.State.DISCARDED).order_by('id')
+        return [serialize_item(item) for item in items]
 
 
 class PlayerProfileUpdateSerializer(serializers.Serializer):
@@ -68,6 +127,9 @@ class PlayerProfileUpdateSerializer(serializers.Serializer):
 
 
 class PlayerInventorySerializer(serializers.ModelSerializer):
+    inventory_items = serializers.SerializerMethodField()
+    discarded_items = serializers.SerializerMethodField()
+
     class Meta:
         model = PlayerProfile
         fields = (
@@ -75,6 +137,14 @@ class PlayerInventorySerializer(serializers.ModelSerializer):
             'discarded_items',
             'updated_at',
         )
+
+    def get_inventory_items(self, obj):
+        items = obj.items.filter(state=PlayerItem.State.INVENTORY).order_by('id')
+        return [serialize_item(item) for item in items]
+
+    def get_discarded_items(self, obj):
+        items = obj.items.filter(state=PlayerItem.State.DISCARDED).order_by('id')
+        return [serialize_item(item) for item in items]
 
 
 class PlayerInventoryUpdateSerializer(serializers.Serializer):
@@ -99,3 +169,49 @@ class PlayerGoldSerializer(serializers.ModelSerializer):
 
 class PlayerGoldUpdateSerializer(serializers.Serializer):
     gold = serializers.IntegerField(required=True, min_value=0)
+
+
+# ---------------------------------------------------------------------------
+# Marketplace serializers
+# ---------------------------------------------------------------------------
+
+class MarketplaceListingSerializer(serializers.ModelSerializer):
+    seller_username = serializers.CharField(source='seller.user.username', read_only=True)
+    buyer_username = serializers.SerializerMethodField()
+    item_data = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MarketplaceListing
+        fields = (
+            'id',
+            'seller_username',
+            'item_data',
+            'price',
+            'status',
+            'buyer_username',
+            'listed_at',
+            'updated_at',
+        )
+
+    def get_buyer_username(self, obj):
+        return obj.buyer.user.username if obj.buyer else None
+
+    def get_item_data(self, obj):
+        return serialize_item(obj.item)
+
+
+class MarketplaceCreateSerializer(serializers.Serializer):
+    item_data = serializers.DictField()
+    price = serializers.IntegerField(min_value=1)
+
+    def validate_item_data(self, value):
+        if not value.get('instance_id'):
+            raise serializers.ValidationError(
+                'item_data must include a non-empty instance_id. '
+                'Sync your inventory first so the backend assigns IDs.'
+            )
+        try:
+            value['instance_id'] = str(uuid.UUID(str(value['instance_id'])))
+        except (TypeError, ValueError):
+            raise serializers.ValidationError('item_data.instance_id must be a valid UUID.')
+        return value
