@@ -116,11 +116,18 @@ class PlayerProfileView(APIView):
                     profile.active_session_id = session_id
                     profile.last_sequence = 0
 
-                if sequence is not None and sequence <= profile.last_sequence:
-                    current = PlayerProfileSerializer(profile).data
-                    current['ignored'] = True
-                    current['reason'] = 'stale_sequence'
-                    return Response(current, status=status.HTTP_200_OK)
+        for field in (
+            'level',
+            'experience',
+            'hp_max',
+            'hp_current',
+            'gold',
+            'inventory_items',
+            'discarded_items',
+            'equipped_items',
+        ):
+            if field in validated:
+                setattr(profile, field, validated[field])
 
             for field in (
                 'level',
@@ -205,6 +212,10 @@ class PlayerInventoryView(APIView):
             )
             profile.save(update_fields=['updated_at'])
 
+        if 'equipped_items' in validated:
+            profile.equipped_items = validated['equipped_items']
+
+        profile.save(update_fields=['inventory_items', 'discarded_items', 'equipped_items', 'updated_at'])
         output = PlayerInventorySerializer(profile).data
         return Response(output, status=status.HTTP_200_OK)
 

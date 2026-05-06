@@ -73,6 +73,7 @@ class PlayerProfileSerializer(serializers.ModelSerializer):
             'gold',
             'inventory_items',
             'discarded_items',
+            'equipped_items',
             'skills',
             'updated_at',
         )
@@ -99,6 +100,9 @@ class PlayerProfileUpdateSerializer(serializers.Serializer):
     )
     discarded_items = serializers.ListField(
         child=serializers.DictField(),
+        required=False,
+    )
+    equipped_items = serializers.DictField(
         required=False,
     )
 
@@ -135,6 +139,7 @@ class PlayerInventorySerializer(serializers.ModelSerializer):
         fields = (
             'inventory_items',
             'discarded_items',
+            'equipped_items',
             'updated_at',
         )
 
@@ -154,6 +159,9 @@ class PlayerInventoryUpdateSerializer(serializers.Serializer):
     )
     discarded_items = serializers.ListField(
         child=serializers.DictField(),
+        required=False,
+    )
+    equipped_items = serializers.DictField(
         required=False,
     )
 
