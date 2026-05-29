@@ -116,25 +116,13 @@ class PlayerProfileView(APIView):
                     profile.active_session_id = session_id
                     profile.last_sequence = 0
 
-        for field in (
-            'level',
-            'experience',
-            'hp_max',
-            'hp_current',
-            'gold',
-            'inventory_items',
-            'discarded_items',
-            'equipped_items',
-        ):
-            if field in validated:
-                setattr(profile, field, validated[field])
-
             for field in (
                 'level',
                 'experience',
                 'hp_max',
                 'hp_current',
                 'gold',
+                'equipped_items',
             ):
                 if field in validated:
                     setattr(profile, field, validated[field])
@@ -163,7 +151,17 @@ class PlayerProfileView(APIView):
             if sequence is not None:
                 profile.last_sequence = sequence
 
-            profile.save()
+            profile.save(update_fields=[
+                'level',
+                'experience',
+                'hp_max',
+                'hp_current',
+                'gold',
+                'equipped_items',
+                'active_session_id',
+                'last_sequence',
+                'updated_at',
+            ])
 
         output = PlayerProfileSerializer(profile).data
         output['ignored'] = False
@@ -210,12 +208,13 @@ class PlayerInventoryView(APIView):
                 inventory_items=validated.get('inventory_items'),
                 discarded_items=validated.get('discarded_items'),
             )
-            profile.save(update_fields=['updated_at'])
 
-        if 'equipped_items' in validated:
-            profile.equipped_items = validated['equipped_items']
+            update_fields = ['updated_at']
+            if 'equipped_items' in validated:
+                profile.equipped_items = validated['equipped_items']
+                update_fields.append('equipped_items')
 
-        profile.save(update_fields=['inventory_items', 'discarded_items', 'equipped_items', 'updated_at'])
+            profile.save(update_fields=update_fields)
         output = PlayerInventorySerializer(profile).data
         return Response(output, status=status.HTTP_200_OK)
 
