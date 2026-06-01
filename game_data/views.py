@@ -109,24 +109,20 @@ class PlayerProfileView(APIView):
 
         with transaction.atomic():
             session_id = validated.get('session_id')
-            sequence = validated.get('sequence')
+            sequence   = validated.get('sequence')
 
-            if session_id:
-                if profile.active_session_id != session_id:
-                    profile.active_session_id = session_id
-                    profile.last_sequence = 0
+            # Reset sequence counter when a new session starts.
+            if session_id and profile.active_session_id != session_id:
+                profile.active_session_id = session_id
+                profile.last_sequence = 0
 
-            for field in (
-                'level',
-                'experience',
-                'hp_max',
-                'hp_current',
-                'gold',
-                'equipped_items',
-            ):
+            # Apply simple scalar fields directly onto the profile.
+            for field in ('level', 'experience', 'hp_max', 'hp_current', 'gold', 'class_name', 'equipped_items'):
+
                 if field in validated:
                     setattr(profile, field, validated[field])
 
+            # Sync inventory and discarded items.
             if 'inventory_items' in validated or 'discarded_items' in validated:
                 _sync_profile_items(
                     profile,
@@ -134,6 +130,7 @@ class PlayerProfileView(APIView):
                     discarded_items=validated.get('discarded_items'),
                 )
 
+            # Replace skills list.
             if 'skills' in validated:
                 PlayerSkill.objects.filter(player_profile=profile).delete()
                 for index, skill in enumerate(validated['skills']):
@@ -145,6 +142,7 @@ class PlayerProfileView(APIView):
                         display_order=skill.get('display_order', index),
                     )
 
+            # Guard: hp_current must never exceed hp_max.
             if profile.hp_current > profile.hp_max:
                 profile.hp_current = profile.hp_max
 
@@ -166,6 +164,7 @@ class PlayerProfileView(APIView):
         output = PlayerProfileSerializer(profile).data
         output['ignored'] = False
         return Response(output, status=status.HTTP_200_OK)
+
 
     @staticmethod
     def _get_or_create_profile(user):

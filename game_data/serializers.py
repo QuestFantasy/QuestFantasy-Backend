@@ -71,6 +71,7 @@ class PlayerProfileSerializer(serializers.ModelSerializer):
             'hp_max',
             'hp_current',
             'gold',
+            'class_name',
             'inventory_items',
             'discarded_items',
             'equipped_items',
@@ -93,6 +94,10 @@ class PlayerProfileUpdateSerializer(serializers.Serializer):
     hp_max = serializers.IntegerField(required=False, min_value=1)
     hp_current = serializers.IntegerField(required=False, min_value=0)
     gold = serializers.IntegerField(required=False, min_value=0)
+    class_name = serializers.ChoiceField(
+        choices=[c[0] for c in PlayerProfile.CLASS_CHOICES],
+        required=False,
+    )
     skills = PlayerSkillSerializer(many=True, required=False)
     inventory_items = serializers.ListField(
         child=serializers.DictField(),
