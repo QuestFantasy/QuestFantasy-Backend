@@ -59,7 +59,7 @@ class PlayerSkillSerializer(serializers.ModelSerializer):
 
 
 class PlayerProfileSerializer(serializers.ModelSerializer):
-    skills = PlayerSkillSerializer(many=True, read_only=True)
+    skills = serializers.SerializerMethodField()
     inventory_items = serializers.SerializerMethodField()
     discarded_items = serializers.SerializerMethodField()
 
@@ -78,6 +78,10 @@ class PlayerProfileSerializer(serializers.ModelSerializer):
             'skills',
             'updated_at',
         )
+
+    def get_skills(self, obj):
+        ordered_skills = obj.skills.all().order_by('display_order', 'id')
+        return PlayerSkillSerializer(ordered_skills, many=True).data
 
     def get_inventory_items(self, obj):
         items = obj.items.filter(state=PlayerItem.State.INVENTORY).order_by('id')
