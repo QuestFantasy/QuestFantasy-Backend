@@ -155,6 +155,7 @@ class PlayerProfileView(APIView):
                 'hp_max',
                 'hp_current',
                 'gold',
+                'class_name',
                 'equipped_items',
                 'active_session_id',
                 'last_sequence',
