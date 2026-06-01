@@ -8,6 +8,19 @@ User = get_user_model()
 
 
 class PlayerProfile(models.Model):
+
+    CLASS_ADVENTURER = 'adventurer'
+    CLASS_MAGE       = 'mage'
+    CLASS_ARCHER     = 'archer'
+    CLASS_WARRIOR    = 'warrior'
+
+    CLASS_CHOICES = [
+        (CLASS_ADVENTURER, 'Adventurer'),
+        (CLASS_MAGE,       'Mage'),
+        (CLASS_ARCHER,     'Archer'),
+        (CLASS_WARRIOR,    'Warrior'),
+    ]
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -18,6 +31,13 @@ class PlayerProfile(models.Model):
     hp_max = models.PositiveIntegerField(default=100)
     hp_current = models.PositiveIntegerField(default=100)
     gold = models.PositiveIntegerField(default=100)
+
+    # Player class — determines available skills and sprite set.
+    class_name = models.CharField(
+        max_length=16,
+        choices=CLASS_CHOICES,
+        default=CLASS_ADVENTURER,
+    )
 
     # Currently equipped items keyed by slot (head, body, arms, legs, shoes, weapon).
     equipped_items = models.JSONField(default=dict, blank=True)
@@ -34,7 +54,7 @@ class PlayerProfile(models.Model):
         ordering = ['user_id']
 
     def __str__(self) -> str:
-        return f"{self.user.username} L{self.level} HP {self.hp_current}/{self.hp_max}"
+        return f"{self.user.username} L{self.level} HP {self.hp_current}/{self.hp_max} [{self.class_name}]"
 
 
 class PlayerSkill(models.Model):
