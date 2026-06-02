@@ -139,7 +139,7 @@ class PlayerProfileView(APIView):
                         skill_id=skill['skill_id'],
                         name=skill['name'],
                         cooldown_seconds=skill['cooldown_seconds'],
-                        display_order=skill.get('display_order', index),
+                        display_order=index,
                     )
 
             # Guard: hp_current must never exceed hp_max.
@@ -155,6 +155,7 @@ class PlayerProfileView(APIView):
                 'hp_max',
                 'hp_current',
                 'gold',
+                'class_name',
                 'equipped_items',
                 'active_session_id',
                 'last_sequence',
