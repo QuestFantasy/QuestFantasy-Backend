@@ -12,13 +12,13 @@ class PlayerProfile(models.Model):
     CLASS_ADVENTURER = 'adventurer'
     CLASS_MAGE       = 'mage'
     CLASS_ARCHER     = 'archer'
-    CLASS_WARRIOR    = 'warrior'
+    CLASS_KNIGHT     = 'knight'
 
     CLASS_CHOICES = [
         (CLASS_ADVENTURER, 'Adventurer'),
         (CLASS_MAGE,       'Mage'),
         (CLASS_ARCHER,     'Archer'),
-        (CLASS_WARRIOR,    'Warrior'),
+        (CLASS_KNIGHT,     'Knight'),
     ]
 
     user = models.OneToOneField(
