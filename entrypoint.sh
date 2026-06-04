@@ -13,7 +13,7 @@ if [ "$ENVIRONMENT" = "production" ]; then
     fi
 fi
 
-echo "[web] Waiting for PostgreSQL..."
+echo "[backend] Waiting for PostgreSQL..."
 python - <<'PY'
 import os
 import time
@@ -28,26 +28,26 @@ password = os.getenv("DB_PASSWORD", "questfantasy")
 for i in range(30):
     try:
         psycopg.connect(host=host, port=port, dbname=name, user=user, password=password).close()
-        print("[web] PostgreSQL is ready")
+        print("[backend] PostgreSQL is ready")
         break
     except Exception as exc:
-        print(f"[web] PostgreSQL not ready ({exc}), retrying...")
+        print(f"[backend] PostgreSQL not ready ({exc}), retrying...")
         time.sleep(2)
 else:
-    raise SystemExit("[web] PostgreSQL is unreachable")
+    raise SystemExit("[backend] PostgreSQL is unreachable")
 PY
 
-echo "[web] Applying migrations..."
+echo "[backend] Applying migrations..."
 python manage.py migrate --noinput
 
-echo "[web] Collecting static files..."
+echo "[backend] Collecting static files..."
 python manage.py collectstatic --noinput --clear
 
 # Calculate optimal number of workers (2 * CPU_CORES + 1)
 # Default to 3 for small deployments
 WORKERS=${GUNICORN_WORKERS:-$(python -c "import os; print(min(max(2 * os.cpu_count() + 1 if os.cpu_count() else 3, 2), 16))")}
 
-echo "[web] Starting Gunicorn with $WORKERS workers..."
+echo "[backend] Starting Gunicorn with $WORKERS workers..."
 exec gunicorn config.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers "$WORKERS" \

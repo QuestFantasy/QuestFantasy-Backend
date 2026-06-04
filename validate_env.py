@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 # Add project root to path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 REQUIRED_ENV_VARS = {
     'ENVIRONMENT': {
@@ -68,6 +68,10 @@ OPTIONAL_ENV_VARS = {
     'DJANGO_LOG_LEVEL': {
         'description': 'Django logging level',
         'default': 'INFO',
+    },
+    'TUNNEL_TOKEN': {
+        'description': 'Cloudflare Tunnel Token for remote access',
+        'default': '',
     },
 }
 
