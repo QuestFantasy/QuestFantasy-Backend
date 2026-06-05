@@ -9,6 +9,7 @@ Copy `.env.example` to `.env` and edit values:
 - `DEBUG=False`: For safer defaults
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD`: Set secure credentials for database
 - `TOKEN_TTL_SECONDS`: Login session token expiration in seconds
+- `TUNNEL_TOKEN`: Cloudflare Tunnel Token for remote access (optional, required for online mode)
 
 ## Prerequisites
 
@@ -100,14 +101,21 @@ docker compose version
 If both commands display version numbers, the installation is successful.
 
 ## Start services
+
+To start the default services (Backend + Database) only:
 ```bash
 docker compose up --build -d
+```
+
+To start the services **with Cloudflare Tunnel** enabled (Online Mode):
+```bash
+docker compose --profile online up --build -d
 ```
 
 ## Check status
 ```bash
 docker compose ps
-docker compose logs -f web
+docker compose logs -f backend
 ```
 
 ## Stop services
@@ -124,4 +132,4 @@ docker compose down -v
 ## Notes
 - User passwords are stored hashed by Django auth.
 - Token authentication is configured with server-side expiration.
-- The `web` container applies migrations on startup automatically.
+- The `backend` container applies migrations on startup automatically.

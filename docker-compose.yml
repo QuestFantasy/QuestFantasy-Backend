@@ -17,11 +17,11 @@ services:
       timeout: 5s
       retries: 10
 
-  web:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: questfantasy-web
+    container_name: questfantasy-backend
     restart: unless-stopped
     env_file:
       - .env
@@ -37,6 +37,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: questfantasy-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      - backend
+    profiles:
+      - online
 
 volumes:
   postgres_data:
