@@ -1,0 +1,22 @@
+name: Trigger Parent Repo Submodule Update
+
+on:
+  push:
+    branches:
+      - main  # Triggered when code is merged/pushed into main
+
+jobs:
+  trigger-parent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Parent Submodule Update
+        env:
+          GH_TOKEN: ${{ secrets.PARENT_REPO_PAT }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/QuestFantasy/QuestFantasy/dispatches \
+            -f "event_type=submodule-updated" \
+            -F "client_payload[submodule]=backend"
