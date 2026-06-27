@@ -151,3 +151,25 @@ class MarketplaceListing(models.Model):
 
     def __str__(self) -> str:
         return f"Listing {self.pk} {self.status} {self.price}"
+
+
+class PlayerPendingDrop(models.Model):
+    owner = models.ForeignKey(
+        PlayerProfile,
+        on_delete=models.CASCADE,
+        related_name='pending_drops',
+    )
+    instance_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    item_data = models.JSONField(default=dict, blank=True, null=True) # None/empty means gold
+    gold_amount = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'player_pending_drop'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        if self.gold_amount > 0:
+            return f"Pending Gold {self.gold_amount} for {self.owner.user.username} ({self.instance_id})"
+        return f"Pending Item {(self.item_data or {}).get('name', 'Unknown')} for {self.owner.user.username} ({self.instance_id})"
+

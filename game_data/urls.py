@@ -7,6 +7,7 @@ from .views import (
     PlayerGoldView,
     PlayerInventoryView,
     PlayerProfileView,
+    PlayerDropView,
 )
 
 
@@ -14,6 +15,7 @@ urlpatterns = [
     path('profile/', PlayerProfileView.as_view(), name='player-profile'),
     path('inventory/', PlayerInventoryView.as_view(), name='player-inventory'),
     path('gold/', PlayerGoldView.as_view(), name='player-gold'),
+    path('drop/', PlayerDropView.as_view(), name='player-drop'),
     # Marketplace
     path('marketplace/', MarketplaceListView.as_view(), name='marketplace-list'),
     path('marketplace/<int:pk>/', MarketplaceDetailView.as_view(), name='marketplace-detail'),
