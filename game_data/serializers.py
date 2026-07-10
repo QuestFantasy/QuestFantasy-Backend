@@ -119,6 +119,12 @@ class PlayerProfileUpdateSerializer(serializers.Serializer):
     session_id = serializers.CharField(required=False, allow_blank=False, max_length=64)
     sequence = serializers.IntegerField(required=False, min_value=0)
 
+    # Secure drop claims
+    claimed_drops = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+    )
+
     def validate(self, attrs):
         hp_max = attrs.get('hp_max')
         hp_current = attrs.get('hp_current')

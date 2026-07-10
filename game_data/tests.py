@@ -65,6 +65,67 @@ class PlayerProfileApiTests(APITestCase):
         self.assertFalse(first.data['ignored'])
         self.assertTrue(second.data['ignored'])
 
+    def test_patch_profile_rejects_excessive_gold(self):
+        self.authenticate()
+        response = self.client.patch(
+            self.url,
+            {'gold': 999999},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['ignored'])
+        self.assertEqual(response.data['reason'], 'invalid_gold_gain')
+
+    def test_patch_profile_rejects_excessive_hp_max(self):
+        self.authenticate()
+        response = self.client.patch(
+            self.url,
+            {'hp_max': 99999},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['ignored'])
+        self.assertEqual(response.data['reason'], 'invalid_hp_max')
+
+    def test_patch_profile_rejects_level_jump(self):
+        self.authenticate()
+        response = self.client.patch(
+            self.url,
+            {'level': 10},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['ignored'])
+        self.assertEqual(response.data['reason'], 'invalid_level_jump')
+
+    def test_patch_profile_rejects_hacked_item_spawn(self):
+        self.authenticate()
+        # Spawn an equipment with 9999 ATK
+        response = self.client.patch(
+            self.url,
+            {
+                'inventory_items': [
+                    {
+                        'instance_id': '99999999-9999-9999-9999-999999999999',
+                        'name': 'God Sword',
+                        'item_type': 'weapon',
+                        'rarity': 5,
+                        'level_requirement': 1,
+                        'abilities': {
+                            'atk': 9999,
+                            'def': 0,
+                            'spd': 0,
+                            'vit': 0
+                        }
+                    }
+                ]
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['ignored'])
+        self.assertIn('item_validation_failed', response.data['reason'])
+
     def test_patch_profile_replaces_skills_list(self):
         self.authenticate()
         response = self.client.patch(
